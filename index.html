@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
     <title>Leitor de Código de Barras e QR Code</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
@@ -155,5 +157,13 @@
             startCamera();
         });
     </script>
+    <script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js")
+      .then(() => console.log("Service Worker registrado com sucesso."))
+      .catch((err) => console.error("Erro ao registrar o Service Worker:", err));
+  }
+</script>
+
 </body>
 </html>
