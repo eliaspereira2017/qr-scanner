@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leitor de Código de Barras e QR Code</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        @keyframes scan {
+            0% { top: 0%; }
+            50% { top: 100%; }
+            100% { top: 0%; }
+        }
+        .animate-pulse-fast {
+            animation-duration: 1.5s;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900 flex flex-col items-center justify-center min-h-screen p-4">
+    <div class="max-w-2xl w-full bg-white rounded-xl shadow-lg p-6 space-y-6">
+        <!-- Título e Descrição -->
+        <div class="text-center">
+            <h1 class="text-3xl font-bold text-gray-800">Leitor de Código de Barras</h1>
+            <p class="mt-2 text-gray-600">Aponte a câmera para um código QR ou de barras para começar a escanear.</p>
+        </div>
+
+        <!-- Área do Scanner -->
+        <div class="relative w-full aspect-video bg-gray-200 rounded-lg overflow-hidden">
+            <video id="video" class="absolute inset-0 w-full h-full object-cover"></video>
+            <div id="loadingMessage" class="absolute inset-0 flex items-center justify-center text-gray-500 font-medium">
+                Carregando a câmera...
+            </div>
+            <div id="scanLine" class="absolute w-full h-1 bg-green-500 top-1/2 -mt-0.5 animate-pulse-fast"></div>
+        </div>
+
+        <!-- Botão para alternar a câmera -->
+        <div class="flex space-x-4">
+            <button id="switchCameraButton" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors duration-200 hidden" onclick="switchCamera()">Alternar Câmera</button>
+        </div>
+
+        <!-- Área de Resultados -->
+        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h2 class="text-xl font-semibold mb-2 text-gray-700">Resultado do Scan</h2>
+            <div id="output" class="text-gray-800 break-words font-mono bg-gray-100 p-3 rounded-md min-h-[40px] flex items-center justify-center text-center">
+                <span class="text-gray-500">O código escaneado aparecerá aqui.</span>
+            </div>
+        </div>
+
+        <!-- Histórico de Leituras -->
+        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h2 class="text-xl font-semibold mb-2 text-gray-700">Histórico de Leituras</h2>
+            <textarea id="history" class="w-full h-40 p-2 border border-gray-300 rounded-md text-sm font-mono bg-gray-100" readonly></textarea>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const output = document.getElementById('output');
+        const switchCameraButton = document.getElementById('switchCameraButton');
+        const historyBox = document.getElementById('history');
+
+        let currentFacingMode = 'environment';
+        let codeReader = new ZXing.BrowserMultiFormatReader();
+        let lastResult = ""; // evita duplicados
+
+        const scanLine = document.getElementById('scanLine');
+        scanLine.style.animation = 'scan 2s linear infinite';
+
+        function beep() {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+            function playTone(startTime) {
+                const oscillator = ctx.createOscillator();
+                const gainNode = ctx.createGain();
+
+                oscillator.type = "sine";
+                oscillator.frequency.setValueAtTime(800, startTime); // tom de scanner
+                oscillator.connect(gainNode);
+                gainNode.connect(ctx.destination);
+
+                oscillator.start(startTime);
+                oscillator.stop(startTime + 0.1); // 100ms cada beep
+            }
+
+            const now = ctx.currentTime;
+            playTone(now);
+            playTone(now + 0.15); // 150ms depois
+            playTone(now + 0.30); // mais 150ms depois
+        }
+
+        async function startCamera(facingMode = currentFacingMode) {
+            loadingMessage.classList.remove('hidden');
+
+            try {
+                const videoDevices = await codeReader.getVideoInputDevices();
+                let deviceId = null;
+                const preferredDevice = videoDevices.find(device => device.label.toLowerCase().includes(facingMode === 'environment' ? 'back' : 'front'));
+                deviceId = preferredDevice ? preferredDevice.deviceId : videoDevices[0].deviceId;
+
+                codeReader.decodeFromVideoDevice(deviceId, 'video', (result, err) => {
+                    if (result) {
+                        if (result.text !== lastResult) { // só registra se for diferente do último
+                            lastResult = result.text;
+                            output.textContent = result.text;
+
+                            beep();
+
+                            const timestamp = new Date().toLocaleString();
+                            historyBox.value += `[${timestamp}] ${result.text}\n`;
+                            historyBox.scrollTop = historyBox.scrollHeight;
+                        }
+                    }
+                    if (err && !(err instanceof ZXing.NotFoundException)) {
+                        console.error(err);
+                    }
+                });
+
+                loadingMessage.classList.add('hidden');
+                currentFacingMode = facingMode;
+                if (videoDevices.length > 1) {
+                    switchCameraButton.classList.remove('hidden');
+                }
+            } catch (err) {
+                loadingMessage.textContent = 'Erro ao acessar a câmera. Verifique as permissões.';
+                console.error('Erro ao acessar a câmera:', err);
+            }
+        }
+
+        function switchCamera() {
+            currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+            codeReader.reset();
+            startCamera(currentFacingMode);
+        }
+
+        window.addEventListener('load', () => {
+            startCamera();
+        });
+    </script>
+</body>
+</html>
