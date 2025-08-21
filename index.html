@@ -17,6 +17,12 @@
         .animate-pulse-fast {
             animation-duration: 1.5s;
         }
+        a.link {
+            color: #2563eb;
+            font-weight: 600;
+            text-decoration: underline;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-900 flex flex-col items-center justify-center min-h-screen p-4">
@@ -92,6 +98,15 @@
             playTone(now + 0.30); // mais 150ms depois
         }
 
+        function showResult(text) {
+            // Se for link, torna clicável
+            if (text.startsWith("http://") || text.startsWith("https://")) {
+                output.innerHTML = `<a href="${text}" target="_blank" class="link">${text}</a>`;
+            } else {
+                output.textContent = text;
+            }
+        }
+
         async function startCamera(facingMode = currentFacingMode) {
             loadingMessage.classList.remove('hidden');
 
@@ -105,7 +120,7 @@
                     if (result) {
                         if (result.text !== lastResult) { // só registra se for diferente do último
                             lastResult = result.text;
-                            output.textContent = result.text;
+                            showResult(result.text);
 
                             beep();
 
